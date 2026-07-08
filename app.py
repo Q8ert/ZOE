@@ -172,11 +172,6 @@ def checkin_page():
     if patient_context:
         st.divider()
 
-        # Show the LLM confirmation summary
-        if "confirmation_summary" in st.session_state:
-            st.subheader("You've told us...")
-            st.markdown(st.session_state["confirmation_summary"])
-
         # User confirms the summary before receiving support
         if st.button("Yes, this looks right — show me support"):
 
@@ -214,7 +209,7 @@ def checkin_page():
         if "support" in st.session_state:
             st.divider()
             st.subheader("Support for right now")
-        st.markdown(st.session_state["support"])
+            st.markdown(st.session_state["support"])
 
         # Only offer GP notes after support has been generated
         if st.button("Create my GP notes"):
