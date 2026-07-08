@@ -153,9 +153,6 @@ def checkin_page():
     st.title("Seen Symptom Ally")
     st.write(f"Welcome, **{st.session_state.username}**")
 
-    # So you can see exactly where the file is being written.
-    st.sidebar.caption(f"Saving progress to:\n{PROGRESS_FILE}")
-
     if st.sidebar.button("Log out"):
         st.session_state.logged_in = False
         st.session_state.username = None

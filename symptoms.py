@@ -99,13 +99,36 @@ def symptom_tracker():
         "You can add more detail only where you want to."
     )
 
-    # Load previously saved answers for the logged-in user, if any exist.
+    # ------------------------------------------------------------------
+    # Read this user's saved answers (if any) and build lookups we can use
+    # as the default values for each input below. Defaults apply only the
+    # first time each widget is drawn, so edits made afterwards are kept.
+    # ------------------------------------------------------------------
     username = st.session_state.get("username")
-    if username:
-        saved = get_user_progress(username)
-        if saved and st.button("Load my saved answers"):
-            st.session_state["patient_context"] = saved
-            st.success("Loaded your saved answers")
+    saved = get_user_progress(username) if username else None
+
+    saved_by_category = {}   # category -> [symptom, ...]
+    saved_severity = {}      # symptom -> severity
+    saved_duration = {}      # symptom -> duration
+    saved_impact = []
+    saved_main_concern = ""
+    saved_goal = ""
+    saved_notes = ""
+
+    if saved:
+        for entry in saved.get("symptoms", []):
+            saved_by_category.setdefault(entry["category"], []).append(entry["symptom"])
+            saved_severity[entry["symptom"]] = entry["severity"]
+            saved_duration[entry["symptom"]] = entry["duration"]
+        saved_impact = saved.get("impact", [])
+        saved_main_concern = saved.get("main_concern", "")
+        saved_goal = saved.get("appointment_goal", "")
+        saved_notes = saved.get("additional_notes", "")
+
+    # Optional: also load saved answers into the summary view.
+    if username and saved and st.button("Load my saved answers"):
+        st.session_state["patient_context"] = saved
+        st.success("Loaded your saved answers")
 
     with st.form("symptom_form"):
         st.subheader("1. Symptom areas")
@@ -114,9 +137,15 @@ def symptom_tracker():
 
         for category, symptoms in SYMPTOM_CATEGORIES.items():
             with st.expander(category):
+                # Prefill the category's selected symptoms from saved data.
+                default_selected = [
+                    s for s in saved_by_category.get(category, []) if s in symptoms
+                ]
+
                 selected_symptoms = st.multiselect(
                     f"Which {category.lower()} symptoms are you experiencing?",
                     symptoms,
+                    default=default_selected,
                     key=f"{category}_selected",
                 )
 
@@ -124,18 +153,27 @@ def symptom_tracker():
                     col1, col2 = st.columns(2)
 
                     with col1:
+                        # Prefill severity from saved data, else default 3.
                         severity = st.slider(
                             f"{symptom} severity",
                             1,
                             5,
-                            3,
+                            saved_severity.get(symptom, 3),
                             key=f"{symptom}_severity",
                         )
 
                     with col2:
+                        # Prefill duration from saved data, else "Not selected".
+                        saved_dur = saved_duration.get(symptom, "Not selected")
+                        dur_index = (
+                            DURATION_OPTIONS.index(saved_dur)
+                            if saved_dur in DURATION_OPTIONS
+                            else 0
+                        )
                         duration = st.selectbox(
                             f"{symptom} duration",
                             DURATION_OPTIONS,
+                            index=dur_index,
                             key=f"{symptom}_duration",
                         )
 
@@ -152,25 +190,32 @@ def symptom_tracker():
         impact = st.multiselect(
             "How are these symptoms affecting your daily life?",
             IMPACT_OPTIONS,
+            default=[i for i in saved_impact if i in IMPACT_OPTIONS],
+            key="impact_select",
         )
 
         st.subheader("3. Main concern")
         main_concern = st.text_area(
             "What are you most worried about?",
+            value=saved_main_concern,
+            key="main_concern_input",
             placeholder="For example: I'm worried this isn't normal, or I'm struggling to cope at work.",
         )
 
         st.subheader("4. Appointment goal")
         appointment_goal = st.text_area(
             "What would you like to get out of today's appointment?",
+            value=saved_goal,
+            key="appointment_goal_input",
             placeholder="For example: understand what's causing this, discuss options, get a referral, or rule something out.",
         )
 
         st.subheader("5. Anything else")
         additional_notes = st.text_area(
             "Anything else you'd like your GP to know?",
+            value=saved_notes,
+            key="additional_notes_input",
             placeholder="Patterns, triggers, what you've tried, or previous healthcare conversations.",
-            value="Goal"
         )
 
         submitted = st.form_submit_button("Save check-in")
