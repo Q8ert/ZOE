@@ -44,7 +44,7 @@ def init_state():
 
 
 def login_page():
-    st.title("Symptom Ally")
+    st.title("Seen Symptom Ally")
 
     login_tab, register_tab = st.tabs(["Log in", "Register"])
 
@@ -99,36 +99,45 @@ def home_page():
     if patient_context:
         st.divider()
 
-        col1, col2 = st.columns(2)
-
-        with col1:
-            if st.button("Get support for right now"):
-                if not st.session_state.logged_in:
-                    login_page()
+        # Confirmation before generating support
+        if st.button("Yes, this looks right — show me support"):
+            if not st.session_state.logged_in:
+                login_page()
+            else:
                 support = create_in_the_moment_support(patient_context)
                 st.session_state["support"] = support
 
-        with col2:
-            if st.button("Generate GP report"):
-                if not st.session_state.logged_in:
-                    login_page()
+        # Button to create GP notes
+        if st.button("Create my GP notes"):
+            if not st.session_state.logged_in:
+                login_page()
+            else:
                 gp_report = create_gp_report(patient_context)
                 st.session_state["gp_report"] = gp_report
 
-        if "support" in st.session_state:
-            st.subheader("Support for right now")
-            st.markdown(st.session_state["support"])
+        # Show outputs in tabs to avoid long walls of text
+        tabs = st.tabs(["Support", "GP notes"])
 
-        if "gp_report" in st.session_state:
-            st.subheader("GP appointment report")
-            st.markdown(st.session_state["gp_report"])
+        with tabs[0]:
+            if "support" in st.session_state:
+                st.subheader("Support for right now")
+                st.markdown(st.session_state["support"])
+            else:
+                st.info("Click 'Yes, this looks right — show me support' to get practical suggestions.")
 
-            st.download_button(
-                "Download GP report",
-                data=st.session_state["gp_report"],
-                file_name="gp_report.md",
-                mime="text/markdown",
-            )
+        with tabs[1]:
+            if "gp_report" in st.session_state:
+                st.subheader("GP appointment notes")
+                st.markdown(st.session_state["gp_report"])
+
+                st.download_button(
+                    "Download GP notes",
+                    data=st.session_state["gp_report"],
+                    file_name="gp_notes.md",
+                    mime="text/markdown",
+                )
+            else:
+                st.info("Click 'Create my GP notes' to generate concise notes you can bring to your appointment.")
 
 
 def main():
