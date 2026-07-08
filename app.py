@@ -1,3 +1,4 @@
+from reports import create_gp_report, create_in_the_moment_support
 import streamlit as st
 import json
 import bcrypt
@@ -143,40 +144,49 @@ def checkin_page():
 
     patient_context = symptom_tracker()
 
+
     if patient_context:
         st.divider()
 
-        # Confirmation before generating support
-        """if st.button("Yes, this looks right — show me support"):
-            st.session_state["support"] = create_in_the_moment_support(patient_context)
+        # Show the LLM confirmation summary
+        if "confirmation_summary" in st.session_state:
+            st.subheader("You've told us...")
+            st.markdown(st.session_state["confirmation_summary"])
 
-        # Button to create GP notes
-        if st.button("Create my GP notes"):
-            st.session_state["gp_report"] = create_gp_report(patient_context)"""
+        # User confirms the summary before receiving support
+        if st.button("Yes, this looks right — show me support"):
 
-        # Show outputs in tabs to avoid long walls of text
-        tabs = st.tabs(["Support", "GP notes"])
-
-        with tabs[0]:
-            if "support" in st.session_state:
-                st.subheader("Support for right now")
-                st.markdown(st.session_state["support"])
-            else:
-                st.info("Click 'Yes, this looks right — show me support' to get practical suggestions.")
-
-        with tabs[1]:
-            if "gp_report" in st.session_state:
-                st.subheader("GP appointment notes")
-                st.markdown(st.session_state["gp_report"])
-
-                st.download_button(
-                    "Download GP notes",
-                    data=st.session_state["gp_report"],
-                    file_name="gp_notes.md",
-                    mime="text/markdown",
+            with st.spinner("Creating personalised support..."):
+                st.session_state["support"] = create_in_the_moment_support(
+                    patient_context
                 )
-            else:
-                st.info("Click 'Create my GP notes' to generate concise notes you can bring to your appointment.")
+
+        # Show support once generated
+        if "support" in st.session_state:
+            st.divider()
+            st.subheader("Support for right now")
+        st.markdown(st.session_state["support"])
+
+        # Only offer GP notes after support has been generated
+        if st.button("Create my GP notes"):
+
+            with st.spinner("Preparing your GP notes..."):
+                st.session_state["gp_report"] = create_gp_report(
+                    patient_context
+                )
+
+        # Show GP notes once generated
+        if "gp_report" in st.session_state:
+            st.divider()
+            st.subheader("Your GP notes")
+            st.markdown(st.session_state["gp_report"])
+
+            st.download_button(
+                "Download GP notes",
+                data=st.session_state["gp_report"],
+                file_name="gp_notes.md",
+                mime="text/markdown",
+            )
 
 
 def main():
