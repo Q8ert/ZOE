@@ -56,41 +56,33 @@ def create_gp_report(patient_context):
             content="""
 You are a healthcare communication assistant.
 
-Your job is to help someone prepare for a GP appointment.
-Do not diagnose.
-Do not invent information.
-Prioritise the user's top concerns.
-Make the report concise and easy for a GP to scan.
+Your job is to help someone prepare for a GP appointment by writing short notes the patient can bring.
+Write in the patient's voice using first-person "I" statements (for example: "I am experiencing...", "I would like to discuss...").
+Do not write like a clinician — use everyday language.
+Do not diagnose, recommend medication, or invent information.
+Prioritise the user's top concerns and make the notes concise and easy for a GP to scan.
+Include advice to advocate for themselves and ask questions.
+Keep the notes under 300 words.
 """
         ),
         HumanMessage(
             content=f"""
-Create a GP appointment report from this patient context.
+Create a short set of notes the patient can bring to their GP from this patient context.
 
 Patient context:
 {patient_context}
 
-Return:
+Return a markdown document written in the patient's voice (use "I" statements). Include:
 
-## Reason for appointment
+- A one-line "Reason for appointment" starting with "I am coming because...".
+- "Top concerns": 1–3 short bullet points that start with "I am experiencing..." and briefly say why it matters.
+- "Symptom overview": one short line noting how many symptoms or categories are involved (do not list everything).
+- "Impact on daily life": 1–2 short lines about what is affected.
+- "Useful context from my notes": a brief summary using "I" statements drawn from the patient's notes.
+- "Questions I want to ask": 3–4 simple, practical questions starting with "I would like to ask...".
+- "What I could add": up to 3 concise suggestions of missing info the patient might collect before the appointment.
 
-## Top concerns
-Summarise the top 1–3 symptoms and why they matter.
-
-## Symptom overview
-Mention the total number of symptoms logged, but do not list everything unless useful.
-
-## Impact on daily life
-
-## Useful context from notes
-
-## Questions to ask GP
-- 4 practical questions
-
-## Missing information to consider adding
-- Up to 3 things, only if relevant.
-
-Keep it under 300 words.
+Keep the language plain, personal, and under 300 words. Do not diagnose, recommend medications, or invent details.
 """
         ),
     ]
