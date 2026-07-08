@@ -137,21 +137,7 @@ def login_page():
         if st.button("Back", key="back_from_register"):
             _back_to_landing()
 
-
-# ----------------------------------------------------------------------
-# The pop-up. @st.dialog makes it a modal on the same screen.
-# It just shows your existing login_page() inside the modal. The
-# pending_action flag (set before this opens) makes the report run
-# automatically once login_page() logs the person in and reruns.
-# ----------------------------------------------------------------------
-@st.dialog("Please log in to save your progress")
-def login_dialog():
-    login_page()
-
-
-def report_page():
-    st.title("Symptom Ally")
-def home_page():
+def checkin_page():
     st.title("Seen Symptom Ally")
     st.write(f"Welcome, **{st.session_state.username}**")
 
@@ -195,7 +181,10 @@ def home_page():
 
 def main():
     init_state()
-    report_page()
 
+    if st.session_state.logged_in:
+        checkin_page()
+    else:
+        login_page()
 
 main()
