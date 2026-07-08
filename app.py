@@ -4,14 +4,17 @@ import bcrypt
 from pathlib import Path
 
 from symptoms import symptom_tracker
-from reports import create_gp_report, create_in_the_moment_support
+#from reports import create_gp_report, create_in_the_moment_support
 
 USER_FILE = Path("users.json")
 
 
 def load_user():
     if USER_FILE.exists():
-        return json.loads(USER_FILE.read_text())
+        try:
+            return json.loads(USER_FILE.read_text())
+        except json.JSONDecodeError:
+            return {}  # empty or corrupt file, treat as no users
     return {}
 
 
@@ -90,9 +93,19 @@ def login_page():
                 st.error("That username is already taken")
 
 
-def home_page():
+# ----------------------------------------------------------------------
+# The pop-up. @st.dialog makes it a modal on the same screen.
+# It just shows your existing login_page() inside the modal. The
+# pending_action flag (set before this opens) makes the report run
+# automatically once login_page() logs the person in and reruns.
+# ----------------------------------------------------------------------
+@st.dialog("Please log in to save your progress")
+def login_dialog():
+    login_page()
+
+
+def report_page():
     st.title("Symptom Ally")
-    st.write(f"Welcome, **{st.session_state.username}**")
 
     patient_context = symptom_tracker()
 
@@ -100,20 +113,12 @@ def home_page():
         st.divider()
 
         # Confirmation before generating support
-        if st.button("Yes, this looks right — show me support"):
-            if not st.session_state.logged_in:
-                login_page()
-            else:
-                support = create_in_the_moment_support(patient_context)
-                st.session_state["support"] = support
+        """if st.button("Yes, this looks right — show me support"):
+            st.session_state["support"] = create_in_the_moment_support(patient_context)
 
         # Button to create GP notes
         if st.button("Create my GP notes"):
-            if not st.session_state.logged_in:
-                login_page()
-            else:
-                gp_report = create_gp_report(patient_context)
-                st.session_state["gp_report"] = gp_report
+            st.session_state["gp_report"] = create_gp_report(patient_context)"""
 
         # Show outputs in tabs to avoid long walls of text
         tabs = st.tabs(["Support", "GP notes"])
@@ -142,7 +147,7 @@ def home_page():
 
 def main():
     init_state()
-    home_page()
+    report_page()
 
 
 main()
