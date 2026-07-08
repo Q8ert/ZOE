@@ -1,4 +1,8 @@
-#from reports import create_gp_report, create_in_the_moment_support
+from reports import (
+    create_confirmation_summary,
+    create_gp_report,
+    create_in_the_moment_support,
+)
 import streamlit as st
 import json
 import bcrypt
@@ -55,11 +59,20 @@ def init_state():
         st.session_state.logged_in = False
     if "username" not in st.session_state:
         st.session_state.username = None
+    if "checkin_submitted" not in st.session_state:
+        st.session_state.checkin_submitted = False
     # UI state for auth landing
     if "show_login" not in st.session_state:
         st.session_state.show_login = False
     if "show_register" not in st.session_state:
         st.session_state.show_register = False
+
+
+def clear_checkin_flow_state():
+    st.session_state.checkin_submitted = False
+    st.session_state.pop("confirmation_summary", None)
+    st.session_state.pop("support", None)
+    st.session_state.pop("gp_report", None)
 
 
 def login_page():
@@ -157,10 +170,12 @@ def checkin_page():
         st.session_state.logged_in = False
         st.session_state.username = None
         st.session_state.pop("patient_context", None)
-        st.session_state.pop("confirmation_summary", None)
+        clear_checkin_flow_state()
         st.rerun()
 
-    patient_context = symptom_tracker()
+    patient_context = symptom_tracker(
+        show_form=not st.session_state.get("checkin_submitted", False)
+    )
 
     # GUARANTEED SAVE: whenever there is check-in data and we know the user,
     # write it to the JSON file. checkin_page only runs when logged in, so the
@@ -172,56 +187,45 @@ def checkin_page():
     if patient_context:
         st.divider()
 
-        # User confirms the summary before receiving support
-        #if st.button("Yes, this looks right — show me support"):
-
-            #with st.spinner("Creating personalised support..."):
-              #  st.session_state["support"] = create_in_the_moment_support(
-               #     patient_context)
-        # Report generation is disabled for now (reports import commented out).
-        # if st.button("Yes, this looks right — show me support"):
-        #     st.session_state["support"] = create_in_the_moment_support(patient_context)
-        # if st.button("Create my GP notes"):
-        #     st.session_state["gp_report"] = create_gp_report(patient_context)
-
-        tabs = st.tabs(["Support", "GP notes"])
-
-        with tabs[0]:
-            if "support" in st.session_state:
-                st.subheader("Support for right now")
-                st.markdown(st.session_state["support"])
-            else:
-                st.info("Click 'Yes, this looks right — show me support' to get practical suggestions.")
-
-        with tabs[1]:
-            if "gp_report" in st.session_state:
-                st.subheader("GP appointment notes")
-                st.markdown(st.session_state["gp_report"])
-
-                st.download_button(
-                    "Download GP notes",
-                    data=st.session_state["gp_report"],
-                    file_name="gp_notes.md",
-                    mime="text/markdown",
+        if st.session_state.get("checkin_submitted") and "confirmation_summary" not in st.session_state:
+            with st.spinner("Summarising what you've told us..."):
+                st.session_state["confirmation_summary"] = create_confirmation_summary(
+                    patient_context
                 )
 
-        # Show support once generated
+        if "confirmation_summary" in st.session_state:
+            st.subheader("You've told us...")
+            st.markdown(st.session_state["confirmation_summary"])
+
+            with st.container(horizontal=True):
+                show_support = st.button(
+                    "Yes, this looks right — show me support",
+                    type="primary",
+                    key="show_support",
+                )
+                edit_checkin = st.button("Edit check-in", key="edit_checkin")
+
+            if edit_checkin:
+                clear_checkin_flow_state()
+                st.rerun()
+
+            if show_support and "support" not in st.session_state:
+                with st.spinner("Creating support for right now..."):
+                    st.session_state["support"] = create_in_the_moment_support(
+                        patient_context
+                    )
+
         if "support" in st.session_state:
-            st.divider()
             st.subheader("Support for right now")
             st.markdown(st.session_state["support"])
 
-        # Only offer GP notes after support has been generated
-        #if st.button("Create my GP notes"):
-##
-  #          with st.spinner("Preparing your GP notes..."):
-   #             st.session_state["gp_report"] = create_gp_report(
-    #                patient_context
-     #           )
+            if st.button("Create my GP notes", type="primary"):
+                with st.spinner("Preparing your GP notes..."):
+                    st.session_state["gp_report"] = create_gp_report(
+                        patient_context
+                    )
 
-        # Show GP notes once generated
         if "gp_report" in st.session_state:
-            st.divider()
             st.subheader("Your GP notes")
             st.markdown(st.session_state["gp_report"])
 

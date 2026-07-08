@@ -91,13 +91,14 @@ IMPACT_OPTIONS = [
 ]
 
 
-def symptom_tracker():
-    st.header("Appointment preparation")
+def symptom_tracker(show_form=True):
+    if show_form:
+        st.header("Appointment preparation")
 
-    st.write(
-        "Start with the areas that feel relevant. "
-        "You can add more detail only where you want to."
-    )
+        st.write(
+            "Start with the areas that feel relevant. "
+            "You can add more detail only where you want to."
+        )
 
     # ------------------------------------------------------------------
     # Read this user's saved answers (if any) and build lookups we can use
@@ -129,11 +130,25 @@ def symptom_tracker():
     if username and saved and st.button("Load my saved answers"):
         st.session_state["patient_context"] = saved
         st.success("Loaded your saved answers")
+        # Load previously saved answers for the logged-in user, if any exist.
+        username = st.session_state.get("username")
+        if username:
+            saved = get_user_progress(username)
+            if saved and st.button("Load my saved answers"):
+                st.session_state["patient_context"] = saved
+                st.session_state["checkin_submitted"] = True
+                st.session_state.pop("confirmation_summary", None)
+                st.session_state.pop("support", None)
+                st.session_state.pop("gp_report", None)
+                st.rerun()
+    else:
+        username = st.session_state.get("username")
 
-    with st.form("symptom_form"):
-        st.subheader("1. Symptom areas")
+    if show_form:
+        with st.form("symptom_form"):
+            st.subheader("1. Symptom areas")
 
-        symptom_entries = []
+            symptom_entries = []
 
         for category, symptoms in SYMPTOM_CATEGORIES.items():
             with st.expander(category):
@@ -218,77 +233,96 @@ def symptom_tracker():
             placeholder="Patterns, triggers, what you've tried, or previous healthcare conversations.",
         )
 
+        for category, symptoms in SYMPTOM_CATEGORIES.items():
+                with st.expander(category):
+                    selected_symptoms = st.multiselect(
+                        f"Which {category.lower()} symptoms are you experiencing?",
+                        symptoms,
+                        key=f"{category}_selected",
+                    )
+
+                    for symptom in selected_symptoms:
+                        col1, col2 = st.columns(2)
+
+                        with col1:
+                            severity = st.slider(
+                                f"{symptom} severity",
+                                1,
+                                5,
+                                3,
+                                key=f"{symptom}_severity",
+                            )
+
+                        with col2:
+                            duration = st.selectbox(
+                                f"{symptom} duration",
+                                DURATION_OPTIONS,
+                                key=f"{symptom}_duration",
+                            )
+
+                        symptom_entries.append(
+                            {
+                                "category": category,
+                                "symptom": symptom,
+                                "severity": severity,
+                                "duration": duration,
+                            }
+                        )
+
+        st.subheader("2. Impact")
+        impact = st.multiselect(
+                "How are these symptoms affecting your daily life?",
+                IMPACT_OPTIONS,
+            )
+
+        st.subheader("3. Main concern")
+        main_concern = st.text_area(
+                "What are you most worried about?",
+                placeholder="For example: I'm worried this isn't normal, or I'm struggling to cope at work.",
+            )
+
+        st.subheader("4. Appointment goal")
+        appointment_goal = st.text_area(
+                "What would you like to get out of today's appointment?",
+                placeholder="For example: understand what's causing this, discuss options, get a referral, or rule something out.",
+            )
+
+        st.subheader("5. Anything else")
+        additional_notes = st.text_area(
+                "Anything else you'd like your GP to know?",
+                placeholder="Patterns, triggers, what you've tried, or previous healthcare conversations.",
+                value="Goal"
+            )
+
         submitted = st.form_submit_button("Save check-in")
 
-    if submitted:
-        sorted_symptoms = sorted(
-            symptom_entries,
-            key=lambda item: item["severity"],
-            reverse=True,
-        )
+        if submitted:
+            sorted_symptoms = sorted(
+                symptom_entries,
+                key=lambda item: item["severity"],
+                reverse=True,
+            )
 
-        patient_context = {
-            "symptoms": sorted_symptoms,
-            "top_concerns": sorted_symptoms[:3],
-            "impact": impact,
-            "main_concern": main_concern,
-            "appointment_goal": appointment_goal,
-            "additional_notes": additional_notes,
-        }
+            patient_context = {
+                "symptoms": sorted_symptoms,
+                "top_concerns": sorted_symptoms[:3],
+                "impact": impact,
+                "main_concern": main_concern,
+                "appointment_goal": appointment_goal,
+                "additional_notes": additional_notes,
+            }
 
-        st.session_state["patient_context"] = patient_context
+            st.session_state["patient_context"] = patient_context
+            st.session_state["checkin_submitted"] = True
+            st.session_state.pop("confirmation_summary", None)
+            st.session_state.pop("support", None)
+            st.session_state.pop("gp_report", None)
 
-        # Write straight to the JSON file, keyed by username.
-        # This is what creates user_progress.json (same mechanism as users.json).
-        if username:
-            save_user_progress(username, patient_context)
-            st.success(f"Check-in saved to your account ({username})")
-        else:
-            st.success("Check-in saved for this session")
-            st.info("Log in to save your progress to your account.")
+            # Write straight to the JSON file, keyed by username.
+            # This is what creates user_progress.json (same mechanism as users.json).
+            if username:
+                save_user_progress(username, patient_context)
 
     patient_context = st.session_state.get("patient_context")
-
-    if patient_context:
-        st.subheader("You've told us...")
-
-        # Group selected symptoms by category
-        grouped = {}
-        for entry in patient_context["symptoms"]:
-            cat = entry.get("category", "Other")
-            grouped.setdefault(cat, []).append(entry)
-
-        for cat, items in grouped.items():
-            symptom_lines = [f"{i['symptom']} (severity {i['severity']}/5, {i['duration']})" for i in items]
-            st.markdown(f"**{cat}:** {', '.join(symptom_lines)}")
-
-        # Impact
-        if patient_context["impact"]:
-            st.markdown(f"**Impact:** {', '.join(patient_context['impact'])}")
-        else:
-            st.markdown("**Impact:** Not specified")
-
-        # Main concern
-        if patient_context.get("main_concern"):
-            st.markdown("**Main concern:**")
-            st.write(patient_context["main_concern"])
-        else:
-            st.markdown("**Main concern:** Not specified")
-
-        # Appointment goal with added confirmation
-        if patient_context.get("appointment_goal"):
-            st.markdown("**Appointment goal:**")
-            st.write(patient_context["appointment_goal"])
-            st.markdown("✅ Added")
-        else:
-            st.markdown("**Appointment goal:** Not added")
-
-        # Additional notes with confirmation
-        if patient_context.get("additional_notes"):
-            st.markdown("**Additional notes:**")
-            st.write(patient_context["additional_notes"])
-            st.markdown("✅ Added")
-        else:
-            st.markdown("**Additional notes:** Not added")
 
     return patient_context
