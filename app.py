@@ -103,11 +103,15 @@ def home_page():
 
         with col1:
             if st.button("Get support for right now"):
+                if not st.session_state.logged_in:
+                    login_page()
                 support = create_in_the_moment_support(patient_context)
                 st.session_state["support"] = support
 
         with col2:
             if st.button("Generate GP report"):
+                if not st.session_state.logged_in:
+                    login_page()
                 gp_report = create_gp_report(patient_context)
                 st.session_state["gp_report"] = gp_report
 
@@ -129,11 +133,7 @@ def home_page():
 
 def main():
     init_state()
-
-    if st.session_state.logged_in:
-        home_page()
-    else:
-        login_page()
+    home_page()
 
 
 main()
