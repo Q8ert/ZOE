@@ -2,15 +2,16 @@ import json
 from pathlib import Path
 
 import streamlit as st
-from reports import create_confirmation_summary
 
 
-PROGRESS_FILE = Path("user_progress.json")
+PROGRESS_FILE = Path(__file__).resolve().parent / "user_progress.json"
 
 
 # ----------------------------------------------------------------------
 # Progress storage. One JSON file, keyed by username, so each logged-in
-# person gets their own saved answers. The file is created on first save.
+# person gets their own saved answers.
+# The file is created automatically on the first save, exactly the same
+# way users.json is created by save_users() in app.py.
 # Shape: { "luka": {patient_context...}, "someone": {patient_context...} }
 # ----------------------------------------------------------------------
 def load_all_progress():
@@ -25,7 +26,7 @@ def load_all_progress():
 def save_user_progress(username, patient_context):
     all_progress = load_all_progress()
     all_progress[username] = patient_context  # overwrite this user's entry
-    PROGRESS_FILE.write_text(json.dumps(all_progress, indent=2))
+    PROGRESS_FILE.write_text(json.dumps(all_progress, indent=2))  # creates file if missing
 
 
 def get_user_progress(username):
@@ -169,6 +170,7 @@ def symptom_tracker():
         additional_notes = st.text_area(
             "Anything else you'd like your GP to know?",
             placeholder="Patterns, triggers, what you've tried, or previous healthcare conversations.",
+            value="Goal"
         )
 
         submitted = st.form_submit_button("Save check-in")
@@ -190,42 +192,58 @@ def symptom_tracker():
         }
 
         st.session_state["patient_context"] = patient_context
-        st.success("Check-in saved")
+
+        # Write straight to the JSON file, keyed by username.
+        # This is what creates user_progress.json (same mechanism as users.json).
+        if username:
+            save_user_progress(username, patient_context)
+            st.success(f"Check-in saved to your account ({username})")
+        else:
+            st.success("Check-in saved for this session")
+            st.info("Log in to save your progress to your account.")
 
     patient_context = st.session_state.get("patient_context")
 
     if patient_context:
-        # Generate or reuse an LLM confirmation summary
-        if "confirmation_summary" not in st.session_state:
-            try:
-                summary = create_confirmation_summary(patient_context)
-            except Exception:
-                summary = "Sorry — we couldn't create a confirmation summary right now. Please check your entries."
-
-            st.session_state["confirmation_summary"] = summary
-
         st.subheader("You've told us...")
-        st.markdown(st.session_state["confirmation_summary"])
 
-        col1, col2 = st.columns([1, 1])
+        # Group selected symptoms by category
+        grouped = {}
+        for entry in patient_context["symptoms"]:
+            cat = entry.get("category", "Other")
+            grouped.setdefault(cat, []).append(entry)
 
-        with col1:
-            if st.button("Edit check-in"):
-                # Allow user to edit their check-in: clear saved context and summary
-                st.session_state.pop("patient_context", None)
-                st.session_state.pop("confirmation_summary", None)
-                st.experimental_rerun()
+        for cat, items in grouped.items():
+            symptom_lines = [f"{i['symptom']} (severity {i['severity']}/5, {i['duration']})" for i in items]
+            st.markdown(f"**{cat}:** {', '.join(symptom_lines)}")
 
-        with col2:
-            st.caption("If this looks right, go to the main page and click 'Yes, this looks right — show me support'.")
-
-        # Save this check-in to the logged-in user's account.
-        st.divider()
-        if username:
-            if st.button("Save my progress to my account"):
-                save_user_progress(username, patient_context)
-                st.success("Progress saved to your account")
+        # Impact
+        if patient_context["impact"]:
+            st.markdown(f"**Impact:** {', '.join(patient_context['impact'])}")
         else:
-            st.info("Log in to save your progress to your account.")
+            st.markdown("**Impact:** Not specified")
+
+        # Main concern
+        if patient_context.get("main_concern"):
+            st.markdown("**Main concern:**")
+            st.write(patient_context["main_concern"])
+        else:
+            st.markdown("**Main concern:** Not specified")
+
+        # Appointment goal with added confirmation
+        if patient_context.get("appointment_goal"):
+            st.markdown("**Appointment goal:**")
+            st.write(patient_context["appointment_goal"])
+            st.markdown("✅ Added")
+        else:
+            st.markdown("**Appointment goal:** Not added")
+
+        # Additional notes with confirmation
+        if patient_context.get("additional_notes"):
+            st.markdown("**Additional notes:**")
+            st.write(patient_context["additional_notes"])
+            st.markdown("✅ Added")
+        else:
+            st.markdown("**Additional notes:** Not added")
 
     return patient_context

@@ -3,11 +3,13 @@ import json
 import bcrypt
 from pathlib import Path
 
-from symptoms import symptom_tracker
-#from reports import create_gp_report, create_in_the_moment_support
+from symptoms import symptom_tracker, save_user_progress, PROGRESS_FILE
+# from reports import create_gp_report, create_in_the_moment_support
 
-USER_FILE = Path("users.json")
-
+USER_FILE = Path(__file__).resolve().parent / "users.json"
+progress_file = Path("user_progress.json")
+if not progress_file.exists():
+    progress_file.write_text("{}")
 
 def load_user():
     if USER_FILE.exists():
@@ -37,6 +39,14 @@ def register(username, password):
     users[username] = hashed
     save_users(users)
     return True
+
+
+def ensure_progress_file():
+    # Guarantee the progress file exists the moment the app starts, the same
+    # way users.json exists. It starts as an empty object and gets filled in
+    # as people save their check-ins.
+    if not PROGRESS_FILE.exists():
+        PROGRESS_FILE.write_text(json.dumps({}, indent=2))
 
 
 def init_state():
@@ -137,24 +147,39 @@ def login_page():
         if st.button("Back", key="back_from_register"):
             _back_to_landing()
 
+
 def checkin_page():
     st.title("Seen Symptom Ally")
     st.write(f"Welcome, **{st.session_state.username}**")
 
+    # So you can see exactly where the file is being written.
+    st.sidebar.caption(f"Saving progress to:\n{PROGRESS_FILE}")
+
+    if st.sidebar.button("Log out"):
+        st.session_state.logged_in = False
+        st.session_state.username = None
+        st.session_state.pop("patient_context", None)
+        st.session_state.pop("confirmation_summary", None)
+        st.rerun()
+
     patient_context = symptom_tracker()
+
+    # GUARANTEED SAVE: whenever there is check-in data and we know the user,
+    # write it to the JSON file. checkin_page only runs when logged in, so the
+    # username is always set here. This does not depend on any button inside
+    # symptom_tracker() firing.
+    if patient_context and st.session_state.get("username"):
+        save_user_progress(st.session_state["username"], patient_context)
 
     if patient_context:
         st.divider()
 
-        # Confirmation before generating support
-        """if st.button("Yes, this looks right — show me support"):
-            st.session_state["support"] = create_in_the_moment_support(patient_context)
+        # Report generation is disabled for now (reports import commented out).
+        # if st.button("Yes, this looks right — show me support"):
+        #     st.session_state["support"] = create_in_the_moment_support(patient_context)
+        # if st.button("Create my GP notes"):
+        #     st.session_state["gp_report"] = create_gp_report(patient_context)
 
-        # Button to create GP notes
-        if st.button("Create my GP notes"):
-            st.session_state["gp_report"] = create_gp_report(patient_context)"""
-
-        # Show outputs in tabs to avoid long walls of text
         tabs = st.tabs(["Support", "GP notes"])
 
         with tabs[0]:
@@ -181,10 +206,12 @@ def checkin_page():
 
 def main():
     init_state()
+    ensure_progress_file()  # make sure user_progress.json exists on startup
 
     if st.session_state.logged_in:
         checkin_page()
     else:
         login_page()
+
 
 main()
