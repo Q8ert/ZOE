@@ -91,7 +91,7 @@ IMPACT_OPTIONS = [
 ]
 
 
-def symptom_tracker(show_form=True):
+def symptom_tracker(show_form=True, **_kwargs):
     if show_form:
         st.header("Appointment preparation")
 
