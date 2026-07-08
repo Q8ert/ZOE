@@ -185,7 +185,7 @@ def checkin_page():
 
             with st.spinner("Creating personalised support..."):
                 st.session_state["support"] = create_in_the_moment_support(
-                    patient_context
+                    patient_context)
         # Report generation is disabled for now (reports import commented out).
         # if st.button("Yes, this looks right — show me support"):
         #     st.session_state["support"] = create_in_the_moment_support(patient_context)
