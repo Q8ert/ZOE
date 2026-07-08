@@ -1,4 +1,5 @@
 import streamlit as st
+from reports import create_confirmation_summary
 
 
 SYMPTOM_CATEGORIES = {
@@ -156,45 +157,28 @@ def symptom_tracker():
     patient_context = st.session_state.get("patient_context")
 
     if patient_context:
+        # Generate or reuse an LLM confirmation summary
+        if "confirmation_summary" not in st.session_state:
+            try:
+                summary = create_confirmation_summary(patient_context)
+            except Exception:
+                summary = "Sorry — we couldn't create a confirmation summary right now. Please check your entries."
+
+            st.session_state["confirmation_summary"] = summary
+
         st.subheader("You've told us...")
+        st.markdown(st.session_state["confirmation_summary"])
 
-        # Group selected symptoms by category
-        grouped = {}
-        for entry in patient_context["symptoms"]:
-            cat = entry.get("category", "Other")
-            grouped.setdefault(cat, []).append(entry)
+        col1, col2 = st.columns([1, 1])
 
-        for cat, items in grouped.items():
-            symptom_lines = [f"{i['symptom']} (severity {i['severity']}/5, {i['duration']})" for i in items]
-            st.markdown(f"**{cat}:** {', '.join(symptom_lines)}")
+        with col1:
+            if st.button("Edit check-in"):
+                # Allow user to edit their check-in: clear saved context and summary
+                st.session_state.pop("patient_context", None)
+                st.session_state.pop("confirmation_summary", None)
+                st.experimental_rerun()
 
-        # Impact
-        if patient_context["impact"]:
-            st.markdown(f"**Impact:** {', '.join(patient_context['impact'])}")
-        else:
-            st.markdown("**Impact:** Not specified")
-
-        # Main concern
-        if patient_context.get("main_concern"):
-            st.markdown("**Main concern:**")
-            st.write(patient_context["main_concern"])
-        else:
-            st.markdown("**Main concern:** Not specified")
-
-        # Appointment goal with added confirmation
-        if patient_context.get("appointment_goal"):
-            st.markdown("**Appointment goal:**")
-            st.write(patient_context["appointment_goal"])
-            st.markdown("✅ Added")
-        else:
-            st.markdown("**Appointment goal:** Not added")
-
-        # Additional notes with confirmation
-        if patient_context.get("additional_notes"):
-            st.markdown("**Additional notes:**")
-            st.write(patient_context["additional_notes"])
-            st.markdown("✅ Added")
-        else:
-            st.markdown("**Additional notes:** Not added")
+        with col2:
+            st.caption("If this looks right, go to the main page and click 'Yes, this looks right — show me support'.")
 
     return patient_context

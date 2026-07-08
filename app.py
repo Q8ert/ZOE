@@ -44,14 +44,47 @@ def init_state():
         st.session_state.logged_in = False
     if "username" not in st.session_state:
         st.session_state.username = None
+    # UI state for auth landing
+    if "show_login" not in st.session_state:
+        st.session_state.show_login = False
+    if "show_register" not in st.session_state:
+        st.session_state.show_register = False
 
 
 def login_page():
-    st.title("Seen Symptom Ally")
+    st.title("Seen")
 
-    login_tab, register_tab = st.tabs(["Log in", "Register"])
+    st.write("Feel prepared. Feel heard.")
 
-    with login_tab:
+    st.write(
+        "Seen helps you organise your symptoms, understand what matters most, "
+        "and prepare for better conversations with your GP."
+    )
+
+    # helper callbacks
+    def _show_login():
+        st.session_state.show_login = True
+        st.session_state.show_register = False
+
+    def _show_register():
+        st.session_state.show_register = True
+        st.session_state.show_login = False
+
+    def _back_to_landing():
+        st.session_state.show_login = False
+        st.session_state.show_register = False
+
+    col1, col2 = st.columns(2)
+    with col1:
+        st.button("Log in", on_click=_show_login)
+    with col2:
+        st.button("Create account", on_click=_show_register)
+
+    # Show the appropriate form when requested
+    if st.session_state.show_login:
+        st.markdown("---")
+        st.subheader("Log in")
+
         username = st.text_input("Username", key="login_user", value="", placeholder="Username")
         password = st.text_input(
             "Password",
@@ -61,7 +94,7 @@ def login_page():
             value="",
         )
 
-        if st.button("Log in"):
+        if st.button("Log in", key="do_login"):
             if login(username, password):
                 st.session_state.logged_in = True
                 st.session_state.username = username
@@ -69,7 +102,13 @@ def login_page():
             else:
                 st.error("Wrong username or password")
 
-    with register_tab:
+        if st.button("Back", key="back_from_login"):
+            _back_to_landing()
+
+    if st.session_state.show_register:
+        st.markdown("---")
+        st.subheader("Create account")
+
         new_user = st.text_input(
             "Choose a username",
             key="reg_user",
@@ -84,13 +123,19 @@ def login_page():
             value="",
         )
 
-        if st.button("Create account"):
+        if st.button("Create account", key="do_register"):
             if not new_user or not new_pass:
                 st.warning("Fill in both fields")
             elif register(new_user, new_pass):
-                st.success("Account created. Switch to the Log in tab.")
+                st.success("Account created. You can now log in.")
+                # After successful registration, show login form
+                st.session_state.show_register = False
+                st.session_state.show_login = True
             else:
                 st.error("That username is already taken")
+
+        if st.button("Back", key="back_from_register"):
+            _back_to_landing()
 
 
 # ----------------------------------------------------------------------
@@ -106,6 +151,9 @@ def login_dialog():
 
 def report_page():
     st.title("Symptom Ally")
+def home_page():
+    st.title("Seen Symptom Ally")
+    st.write(f"Welcome, **{st.session_state.username}**")
 
     patient_context = symptom_tracker()
 

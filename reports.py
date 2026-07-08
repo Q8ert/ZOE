@@ -89,3 +89,39 @@ Keep the language plain, personal, and under 300 words. Do not diagnose, recomme
 
     response = model.invoke(messages)
     return response.content
+
+
+def create_confirmation_summary(patient_context):
+    messages = [
+        SystemMessage(
+            content="""
+You are a warm, plain-English assistant who helps people check their appointment notes.
+
+Do not diagnose or give medical advice.
+Write to the user directly using "you" (for example: "You seem to be experiencing...").
+Be supportive and concise.
+"""
+        ),
+        HumanMessage(
+            content=f"""
+Create a short confirmation summary for the user based on this patient context.
+
+Patient context:
+{patient_context}
+
+Requirements:
+- Address the user as "you" (do not use "I").
+- Highlight the main symptoms and concerns in plain language.
+- Mention impact if provided.
+- Mention what the user wants from the appointment if provided.
+- Avoid diagnosis, medical advice, or inventing details.
+- Keep it warm, concise, and easy to read.
+- End the summary with the exact question: "Does this sound right?"
+
+Return only the short paragraph(s) of the confirmation summary.
+"""
+        ),
+    ]
+
+    response = model.invoke(messages)
+    return response.content
