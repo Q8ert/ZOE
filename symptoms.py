@@ -1,4 +1,34 @@
+import json
+from pathlib import Path
+
 import streamlit as st
+
+
+PROGRESS_FILE = Path("user_progress.json")
+
+
+# ----------------------------------------------------------------------
+# Progress storage. One JSON file, keyed by username, so each logged-in
+# person gets their own saved answers. The file is created on first save.
+# Shape: { "luka": {patient_context...}, "someone": {patient_context...} }
+# ----------------------------------------------------------------------
+def load_all_progress():
+    if PROGRESS_FILE.exists():
+        try:
+            return json.loads(PROGRESS_FILE.read_text())
+        except json.JSONDecodeError:
+            return {}  # empty or corrupt file, treat as no saved progress
+    return {}
+
+
+def save_user_progress(username, patient_context):
+    all_progress = load_all_progress()
+    all_progress[username] = patient_context  # overwrite this user's entry
+    PROGRESS_FILE.write_text(json.dumps(all_progress, indent=2))
+
+
+def get_user_progress(username):
+    return load_all_progress().get(username)
 
 
 SYMPTOM_CATEGORIES = {
@@ -66,6 +96,14 @@ def symptom_tracker():
         "Start with the areas that feel relevant. "
         "You can add more detail only where you want to."
     )
+
+    # Load previously saved answers for the logged-in user, if any exist.
+    username = st.session_state.get("username")
+    if username:
+        saved = get_user_progress(username)
+        if saved and st.button("Load my saved answers"):
+            st.session_state["patient_context"] = saved
+            st.success("Loaded your saved answers")
 
     with st.form("symptom_form"):
         st.subheader("1. Symptom areas")
@@ -196,5 +234,14 @@ def symptom_tracker():
             st.markdown("✅ Added")
         else:
             st.markdown("**Additional notes:** Not added")
+
+        # Save this check-in to the logged-in user's account.
+        st.divider()
+        if username:
+            if st.button("Save my progress to my account"):
+                save_user_progress(username, patient_context)
+                st.success("Progress saved to your account")
+        else:
+            st.info("Log in to save your progress to your account.")
 
     return patient_context
