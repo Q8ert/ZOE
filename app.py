@@ -1,4 +1,4 @@
-from reports import create_gp_report, create_in_the_moment_support
+#from reports import create_gp_report, create_in_the_moment_support
 import streamlit as st
 import json
 import bcrypt
@@ -173,11 +173,11 @@ def checkin_page():
         st.divider()
 
         # User confirms the summary before receiving support
-        if st.button("Yes, this looks right — show me support"):
+        #if st.button("Yes, this looks right — show me support"):
 
-            with st.spinner("Creating personalised support..."):
-                st.session_state["support"] = create_in_the_moment_support(
-                    patient_context)
+            #with st.spinner("Creating personalised support..."):
+              #  st.session_state["support"] = create_in_the_moment_support(
+               #     patient_context)
         # Report generation is disabled for now (reports import commented out).
         # if st.button("Yes, this looks right — show me support"):
         #     st.session_state["support"] = create_in_the_moment_support(patient_context)
@@ -212,12 +212,12 @@ def checkin_page():
             st.markdown(st.session_state["support"])
 
         # Only offer GP notes after support has been generated
-        if st.button("Create my GP notes"):
-
-            with st.spinner("Preparing your GP notes..."):
-                st.session_state["gp_report"] = create_gp_report(
-                    patient_context
-                )
+        #if st.button("Create my GP notes"):
+##
+  #          with st.spinner("Preparing your GP notes..."):
+   #             st.session_state["gp_report"] = create_gp_report(
+    #                patient_context
+     #           )
 
         # Show GP notes once generated
         if "gp_report" in st.session_state:
@@ -234,6 +234,10 @@ def checkin_page():
 
 
 def main():
+    st.set_page_config(
+        page_title="Seen",
+        page_icon=str("icon.jpg"),
+    )
     init_state()
     ensure_progress_file()  # make sure user_progress.json exists on startup
 
