@@ -49,11 +49,12 @@ def login_page():
     login_tab, register_tab = st.tabs(["Log in", "Register"])
 
     with login_tab:
-        username = st.text_input("Username", key="login_user", value="")
+        username = st.text_input("Username", key="login_user", value="", placeholder="Username")
         password = st.text_input(
             "Password",
             type="password",
             key="login_pass",
+            placeholder="Password",
             value="",
         )
 
