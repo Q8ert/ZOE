@@ -1,3 +1,4 @@
+#from reports import create_gp_report, create_in_the_moment_support
 import streamlit as st
 import json
 import bcrypt
@@ -140,132 +141,11 @@ def init_state():
         st.session_state.logged_in = False
     if "username" not in st.session_state:
         st.session_state.username = None
-    # show_auth decides whether we are on the home page (False) or the
-    # login / create-account page (True). "Get started" flips it to True.
-    if "show_auth" not in st.session_state:
-        st.session_state.show_auth = False
-    # view decides which logged-in screen shows: the check-in or the blog.
-    if "view" not in st.session_state:
-        st.session_state.view = "checkin"
-    # UI state for the auth forms
+    # UI state for auth landing
     if "show_login" not in st.session_state:
         st.session_state.show_login = False
     if "show_register" not in st.session_state:
         st.session_state.show_register = False
-
-
-def do_logout():
-    st.session_state.logged_in = False
-    st.session_state.username = None
-    st.session_state.show_auth = False      # back to the home page
-    st.session_state.show_login = False
-    st.session_state.show_register = False
-    st.session_state.view = "checkin"       # reset the logged-in view
-    for key in ("patient_context", "confirmation_summary", "support", "gp_report"):
-        st.session_state.pop(key, None)
-    st.rerun()
-
-
-def home_page():
-    # First screen everyone sees. No log in required to view it.
-
-    # ---------- HERO ----------
-    st.caption("A CALMER WAY THROUGH MENOPAUSE")
-    st.title("You're not imagining it. You're not alone.")
-    st.write(
-        "Seen is a judgment-free space to track your symptoms, understand what's "
-        "happening in your body, and talk to women who truly get it."
-    )
-
-    st.divider()
-
-    # ---------- ABOUT (updated copy) ----------
-    st.caption("ABOUT US")
-    st.header("Built to help you feel seen, not dismissed")
-    st.write(
-        "Seen is a menopause support space built around one simple belief: your "
-        "symptoms, questions, and lived experience deserve to be taken seriously. "
-        "We help you log what is happening day by day, spot patterns over time, and "
-        "turn those patterns into clearer support."
-    )
-    st.write(
-        "Instead of generic advice, Seen connects you with Circles of people whose "
-        "logged experiences overlap with yours. Peer tips are tagged by real "
-        "outcomes, so you can learn what helped others, save useful questions, and "
-        "walk into care conversations feeling more prepared."
-    )
-    a1, a2, a3 = st.columns(3)
-    a1.info("Daily symptom logs")
-    a2.info("Outcome-backed advice")
-    a3.info("Matched Circles")
-
-    st.divider()
-
-    # ---------- MISSION ----------
-    st.caption("OUR MISSION")
-    st.subheader(
-        "To make sure no woman goes through menopause feeling unseen, unheard, "
-        "or alone."
-    )
-    pillars = [
-        ("Track", "Log symptoms and gently spot the patterns behind them."),
-        ("Understand", "Get trusted, personalised guidance for every stage."),
-        ("Connect", "Join a warm community of women who just get it."),
-    ]
-    for col, (title, body) in zip(st.columns(3), pillars):
-        with col:
-            with st.container(border=True):
-                st.markdown(f"### {title}")
-                st.write(body)
-
-    st.divider()
-
-    # ---------- REVIEWS ----------
-    st.caption("REVIEWS")
-    st.header("What members are saying")
-    reviews = [
-        (
-            "\u2b50\u2b50\u2b50\u2b50\u2b50",
-            "I finally understood why I couldn't sleep. Seen gave me the language "
-            "for what I was feeling, and that alone was a relief.",
-            "Priya, 52",
-        ),
-        (
-            "\u2b50\u2b50\u2b50\u2b50\u2b50",
-            "The community is what keeps me coming back. No judgment, just women "
-            "who genuinely get it.",
-            "Marion, 49",
-        ),
-        (
-            "\u2b50\u2b50\u2b50\u2b50",
-            "My doctor appointments got so much easier once I had my symptom "
-            "history tracked and ready to share.",
-            "Dee, 55",
-        ),
-    ]
-    for col, (stars, quote, who) in zip(st.columns(3), reviews):
-        with col:
-            with st.container(border=True):
-                st.write(stars)
-                st.write(f"\u201c{quote}\u201d")
-                st.caption(who)
-
-    st.divider()
-
-    # ---------- CALL TO ACTION ----------
-    st.caption("READY WHEN YOU ARE")
-    st.header("Ready to feel seen?")
-    st.write(
-        "Join thousands of women navigating menopause with more clarity, and a "
-        "lot more calm."
-    )
-    # Get started sends the user to the login / create-account screen.
-    if st.button("Get started, it's free", key="cta_get_started", type="primary"):
-        st.session_state.show_auth = True
-        st.rerun()
-
-    st.divider()
-    st.caption("\u00a9 2026 Seen. All rights reserved.")
 
 
 def login_page():
@@ -373,24 +253,16 @@ def checkin_page():
     st.title("Seen Symptom Ally")
     st.write(f"Welcome, **{st.session_state.username}**")
 
-    username = st.session_state.get("username")
+    if st.sidebar.button("Log out"):
+        st.session_state.logged_in = False
+        st.session_state.username = None
+        st.session_state.pop("patient_context", None)
+        st.session_state.pop("confirmation_summary", None)
+        st.rerun()
 
-    # If this user already has saved answers in user_progress.json, load them
-    # into the session the first time they land on this page. That makes
-    # patient_context available straight away, so the two action buttons below
-    # appear immediately, and any previously generated support / GP notes are
-    # restored into the tabs.
-    if username and "patient_context" not in st.session_state:
-        saved = get_user_progress(username)
-        if saved:
-            st.session_state["patient_context"] = saved
-            # Restore previously generated reports from disk, if present.
-            if saved.get("support"):
-                st.session_state["support"] = saved["support"]
-            if saved.get("gp_report"):
-                st.session_state["gp_report"] = saved["gp_report"]
-
-    patient_context = symptom_tracker()
+    patient_context = symptom_tracker(
+        show_form=not st.session_state.get("checkin_submitted", False)
+    )
 
     # GUARANTEED SAVE: whenever there is check-in data and we know the user,
     # write it to the JSON file. checkin_page only runs when logged in, so the
@@ -402,31 +274,17 @@ def checkin_page():
     if patient_context:
         st.divider()
 
-        # The report functions should only see the check-in data, not any
-        # previously generated report text, so strip those keys before sending.
-        context_for_model = {
-            k: v for k, v in patient_context.items()
-            if k not in ("support", "gp_report")
-        }
+        # User confirms the summary before receiving support
+        #if st.button("Yes, this looks right — show me support"):
 
-        # One button each, no duplicates.
-        if st.button("Yes, this looks right, show me support", key="gen_support"):
-            with st.spinner("Creating personalised support..."):
-                support = create_in_the_moment_support(context_for_model)
-            st.session_state["support"] = support
-            # SAVE the generated support into user_progress.json.
-            patient_context["support"] = support
-            if username:
-                save_user_progress(username, patient_context)
-
-        if st.button("Create my GP notes", key="gen_gp_report"):
-            with st.spinner("Preparing your GP notes..."):
-                gp_report = create_gp_report(context_for_model)
-            st.session_state["gp_report"] = gp_report
-            # SAVE the generated GP notes into user_progress.json.
-            patient_context["gp_report"] = gp_report
-            if username:
-                save_user_progress(username, patient_context)
+            #with st.spinner("Creating personalised support..."):
+              #  st.session_state["support"] = create_in_the_moment_support(
+               #     patient_context)
+        # Report generation is disabled for now (reports import commented out).
+        # if st.button("Yes, this looks right — show me support"):
+        #     st.session_state["support"] = create_in_the_moment_support(patient_context)
+        # if st.button("Create my GP notes"):
+        #     st.session_state["gp_report"] = create_gp_report(patient_context)
 
         tabs = st.tabs(["Support", "GP notes"])
 
@@ -435,21 +293,46 @@ def checkin_page():
                 st.subheader("Support for right now")
                 st.markdown(st.session_state["support"])
             else:
-                st.info("Click 'Yes, this looks right, show me support' to get practical suggestions.")
+                st.info("Click 'Yes, this looks right — show me support' to get practical suggestions.")
 
         with tabs[1]:
             if "gp_report" in st.session_state:
                 st.subheader("GP appointment notes")
                 st.markdown(st.session_state["gp_report"])
+
                 st.download_button(
                     "Download GP notes",
                     data=st.session_state["gp_report"],
                     file_name="gp_notes.md",
                     mime="text/markdown",
-                    key="download_gp",
                 )
-            else:
-                st.info("Click 'Create my GP notes' once you're ready.")
+
+        # Show support once generated
+        if "support" in st.session_state:
+            st.divider()
+            st.subheader("Support for right now")
+            st.markdown(st.session_state["support"])
+
+        # Only offer GP notes after support has been generated
+        #if st.button("Create my GP notes"):
+##
+  #          with st.spinner("Preparing your GP notes..."):
+   #             st.session_state["gp_report"] = create_gp_report(
+    #                patient_context
+     #           )
+
+        # Show GP notes once generated
+        if "gp_report" in st.session_state:
+            st.divider()
+            st.subheader("Your GP notes")
+            st.markdown(st.session_state["gp_report"])
+
+            st.download_button(
+                "Download GP notes",
+                data=st.session_state["gp_report"],
+                file_name="gp_notes.md",
+                mime="text/markdown",
+            )
 
 
 def main():
