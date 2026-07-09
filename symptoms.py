@@ -299,4 +299,3 @@ def symptom_tracker():
             st.markdown("**Additional notes:** Not added")
 
     return patient_context
-    return patient_context
