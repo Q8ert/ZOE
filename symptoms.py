@@ -128,6 +128,7 @@ def symptom_tracker():
     # Optional: also load saved answers into the summary view.
     if username and saved and st.button("Load my saved answers"):
         st.session_state["patient_context"] = saved
+        st.session_state["show_summary"] = True  # loading is an explicit view request
         st.success("Loaded your saved answers")
 
     with st.form("symptom_form"):
@@ -237,6 +238,8 @@ def symptom_tracker():
         }
 
         st.session_state["patient_context"] = patient_context
+        # Only reveal the "You've told us..." summary after an explicit save.
+        st.session_state["show_summary"] = True
 
         # Write straight to the JSON file, keyed by username.
         # This is what creates user_progress.json (same mechanism as users.json).
@@ -249,7 +252,11 @@ def symptom_tracker():
 
     patient_context = st.session_state.get("patient_context")
 
-    if patient_context:
+    # The summary is shown only when show_summary is set, which happens on
+    # pressing "Save check-in" (or "Load my saved answers"). It does NOT show
+    # just because saved progress was loaded into session on login, so a
+    # returning user sees the buttons but not the summary until they act.
+    if patient_context and st.session_state.get("show_summary"):
         st.subheader("You've told us...")
 
         # Group selected symptoms by category
