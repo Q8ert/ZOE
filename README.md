@@ -64,7 +64,8 @@ Create a virtual environment:
 
 ```bash
 python -m venv .venv
-source .venv/bin/activate
+source .venv/bin/activate (MacBook)
+.venv/Scripts/activate
 ```
 
 Install dependencies:
