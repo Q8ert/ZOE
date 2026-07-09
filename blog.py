@@ -72,7 +72,54 @@ The goal is not to diagnose yourself. The goal is to make the conversation clear
 ]
 
 
+# Link-style buttons (type="tertiary") exist from Streamlit 1.39+. Detect the
+# version so we can render the article names as links where supported, and fall
+# back to a normal button (still clickable) on older versions.
+def _supports_tertiary() -> bool:
+    try:
+        parts = st.__version__.split(".")
+        major, minor = int(parts[0]), int(parts[1])
+    except Exception:
+        return False
+    return (major, minor) >= (1, 39)
+
+
+_LINK_SUPPORTED = _supports_tertiary()
+
+
+def _open_article(title):
+    # Runs as an on_click callback, i.e. before the script reruns and before the
+    # selectbox is created, so it is safe to set the selectbox value here. This
+    # is what makes pressing an article name jump to that article, exactly like
+    # choosing it from the dropdown.
+    st.session_state["blog_article_select"] = title
+
+
 def blog_page():
+    # Style ONLY the article-name links (link-style buttons): lavender,
+    # underlined, no box. Scoped to tertiary buttons so normal buttons keep
+    # their look.
+    st.markdown(
+        """
+        <style>
+        [data-testid="stAppViewContainer"] button[kind="tertiary"],
+        [data-testid="stAppViewContainer"] [data-testid="stBaseButton-tertiary"] {
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+            padding: 0 !important;
+            font-weight: 700 !important;
+        }
+        [data-testid="stAppViewContainer"] button[kind="tertiary"] *,
+        [data-testid="stAppViewContainer"] [data-testid="stBaseButton-tertiary"] * {
+            color: #8B5FBF !important;         /* lavender link */
+            text-decoration: underline !important;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
     st.title("Seen Blog")
     st.write(
         "Plain-English guides to help you understand your symptoms, prepare for "
@@ -84,9 +131,10 @@ def blog_page():
         "They do not replace medical advice."
     )
 
+    titles = [post["title"] for post in BLOG_POSTS]
     selected_title = st.selectbox(
         "Choose an article",
-        [post["title"] for post in BLOG_POSTS],
+        titles,
         key="blog_article_select",
     )
 
@@ -110,5 +158,21 @@ def blog_page():
         if post["title"] != selected_post["title"]:
             with st.container(border=True):
                 st.caption(f"{post['category']} \u00b7 {post['read_time']}")
-                st.markdown(f"**{post['title']}**")
+                # ONLY the article name is the clickable link. Pressing it opens
+                # that article via the on_click callback above.
+                if _LINK_SUPPORTED:
+                    st.button(
+                        post["title"],
+                        key=f"goto_{post['title']}",
+                        on_click=_open_article,
+                        args=(post["title"],),
+                        type="tertiary",
+                    )
+                else:
+                    st.button(
+                        post["title"],
+                        key=f"goto_{post['title']}",
+                        on_click=_open_article,
+                        args=(post["title"],),
+                    )
                 st.write(post["summary"])
